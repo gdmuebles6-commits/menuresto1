@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante Digital - Carta Interactiva</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2canvas para capturar la factura como imagen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Poppins', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-24">
+
+    <!-- HEADER / PORTADA -->
+    <header id="headerCover" class="relative bg-slate-900 text-white shadow-lg h-64 md:h-80 flex flex-col justify-between p-6 bg-cover bg-center transition-all duration-500" style="background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80');">
+        <div class="flex justify-between items-center z-10">
+            <div class="flex items-center space-x-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+                <img id="headerLogo" src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=100&q=80" alt="Logo" class="w-10 h-10 rounded-full object-cover border-2 border-amber-400">
+                <span id="headerName" class="font-bold text-lg tracking-wide text-amber-300">El Buen Sabor</span>
+            </div>
+            <button onclick="openAdminLogin()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-4 py-2 rounded-full shadow-lg transition flex items-center space-x-2 text-sm">
+                <i class="fa-solid fa-gear"></i>
+                <span>Ajustes</span>
+            </button>
+        </div>
+
+        <div class="text-center z-10">
+            <h1 id="headerTitle" class="text-3xl md:text-5xl font-extrabold tracking-tight mb-2 text-white drop-shadow-md">Carta Digital e Interactiva</h1>
+            <p id="headerSubtitle" class="text-slate-200 text-sm md:text-base font-medium">Escanea, elige tus platos favoritos y pide directo a tu mesa o para llevar.</p>
+        </div>
+
+        <!-- Navegación por pestañas -->
+        <div class="flex justify-center space-x-2 md:space-x-4 z-10">
+            <button onclick="switchTab('menu')" id="btnTabMenu" class="tab-btn bg-amber-500 text-slate-950 px-4 py-2 rounded-full font-bold text-sm shadow-md transition flex items-center space-x-2">
+                <i class="fa-solid fa-utensils"></i><span>Menú</span>
+            </button>
+            <button onclick="switchTab('gallery')" id="btnTabGallery" class="tab-btn bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full font-bold text-sm backdrop-blur-md transition flex items-center space-x-2">
+                <i class="fa-solid fa-images"></i><span>Galería</span>
+            </button>
+            <button onclick="switchTab('order')" id="btnTabOrder" class="tab-btn bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full font-bold text-sm backdrop-blur-md transition flex items-center space-x-2 relative">
+                <i class="fa-solid fa-receipt"></i><span>Ver Pedido</span>
+                <span id="orderBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold hidden">0</span>
+            </button>
+            <button onclick="switchTab('qr')" id="btnTabQr" class="tab-btn bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full font-bold text-sm backdrop-blur-md transition flex items-center space-x-2">
+                <i class="fa-solid fa-qrcode"></i><span>QR Mesas</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL DE PESTAÑAS -->
+    <main class="max-w-6xl mx-auto px-4 mt-6">
+
+        <!-- PESTAÑA: MENÚ -->
+        <section id="tabMenu" class="tab-content">
+            <div id="categoryFilters" class="flex overflow-x-auto space-x-2 pb-4 mb-6 scrollbar-none">
+                <button onclick="filterCategory('all')" class="cat-filter active-cat bg-amber-500 text-slate-950 px-5 py-2 rounded-full font-bold text-sm whitespace-nowrap shadow transition">Todos</button>
+            </div>
+            <div id="menuGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- PESTAÑA: GALERÍA VIRTUAL -->
+        <section id="tabGallery" class="tab-content hidden">
+            <div class="mb-6 text-center">
+                <h2 class="text-2xl font-bold text-slate-900">Galería Virtual del Local</h2>
+                <p class="text-slate-500 text-sm">Conoce nuestros platos y espacios de cerca.</p>
+            </div>
+            <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </section>
+
+        <!-- PESTAÑA: VER PEDIDO -->
+        <section id="tabOrder" class="tab-content hidden max-w-2xl mx-auto bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center border-b pb-4 mb-4">
+                <h2 class="text-2xl font-bold text-slate-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-receipt text-amber-500"></i>
+                    <span>Detalle de tu Pedido</span>
+                </h2>
+                <button onclick="clearCart()" class="text-red-500 hover:text-red-700 text-sm font-semibold flex items-center space-x-1">
+                    <i class="fa-solid fa-trash"></i><span>Vaciar carrito</span>
+                </button>
+            </div>
+
+            <div id="orderItemsList" class="divide-y divide-slate-100 max-h-80 overflow-y-auto mb-6"></div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Mesa Asignada:</label>
+                    <input type="text" id="orderTable" readonly class="w-full px-4 py-2 rounded-lg border border-slate-300 bg-slate-100 text-slate-700 font-bold focus:outline-none text-sm">
+                    <p id="tableNotice" class="text-[11px] text-amber-600 mt-1 hidden"><i class="fa-solid fa-circle-info mr-1"></i> Detectada automáticamente por código QR de mesa.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Método de Pago:</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center space-x-2 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-amber-500 transition">
+                            <input type="radio" name="paymentMethod" value="Efectivo" checked onchange="togglePaymentMethod()">
+                            <span class="text-sm font-semibold text-slate-700"><i class="fa-solid fa-money-bill-wave text-green-600 mr-1"></i> Efectivo</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-amber-500 transition">
+                            <input type="radio" name="paymentMethod" value="Transferencia" onchange="togglePaymentMethod()">
+                            <span class="text-sm font-semibold text-slate-700"><i class="fa-solid fa-building-columns text-blue-600 mr-1"></i> Transferencia</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="transferDetailsBox" class="hidden bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs space-y-2">
+                    <p class="font-bold text-blue-900">Datos para la transferencia:</p>
+                    <p><strong>Alias:</strong> <span id="displayAlias" class="text-blue-800">elbuensabor.mp</span></p>
+                    <p><strong>CBU:</strong> <span id="displayCbu" class="text-blue-800">0000000000000000000000</span></p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 text-white p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                <div>
+                    <span class="text-xs text-slate-400 block">Total a Pagar</span>
+                    <span id="orderGrandTotal" class="text-2xl font-extrabold text-amber-400">$0.00</span>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <button onclick="downloadInvoiceImageOnly()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-3 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs">
+                        <i class="fa-solid fa-file-arrow-down text-base"></i>
+                        <span>Descargar Factura</span>
+                    </button>
+                    <button onclick="sendOrderWhatsAppDirect()" class="bg-green-500 hover:bg-green-600 text-white font-bold px-5 py-3 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs">
+                        <i class="fa-brands fa-whatsapp text-lg"></i>
+                        <span>Enviar Pedido a WhatsApp</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- PESTAÑA: QR MESAS -->
+        <section id="tabQr" class="tab-content hidden max-w-3xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Generador de Códigos QR por Mesa</h2>
+                <p class="text-slate-500 text-sm">Configura cuántas mesas tiene tu local para generar un código QR único y distinguible para cada una.</p>
+            </div>
+
+            <div class="flex justify-center items-center space-x-3 mb-8 bg-slate-50 p-4 rounded-xl border">
+                <label class="font-bold text-sm text-slate-700">Cantidad Total de Mesas:</label>
+                <input type="number" id="totalTablesInput" value="10" min="1" max="50" class="w-20 px-3 py-2 border rounded-lg text-center font-bold text-sm">
+                <button onclick="generateTableQrs()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm transition">Generar QR's</button>
+            </div>
+
+            <div id="qrGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto p-2"></div>
+        </section>
+    </main>
+
+    <!-- TICKET / FACTURA OCULTA (SE RENDERIZA AUTOMÁTICA EN IMAGEN AL PEDIR) -->
+    <div id="invoiceTicket" class="fixed -top-[9999px] left-0 w-[420px] bg-white p-6 text-slate-900 font-sans shadow-2xl border border-slate-200 rounded-xl">
+        <div class="text-center border-b pb-4 mb-4">
+            <img id="invLogo" src="" class="w-14 h-14 rounded-full object-cover mx-auto mb-2 border-2 border-amber-500">
+            <h2 id="invRestName" class="text-xl font-extrabold text-slate-900">El Buen Sabor</h2>
+            <p class="text-xs text-slate-500 font-medium">Factura / Comprobante de Consumo</p>
+        </div>
+        <div class="text-xs space-y-1 mb-4 border-b pb-4 text-slate-600">
+            <p><strong>Fecha/Hora:</strong> <span id="invDate"></span></p>
+            <p><strong>Mesa Asignada:</strong> <span id="invTable"></span></p>
+            <p><strong>Método de Pago:</strong> <span id="invPayment"></span></p>
+        </div>
+        <div class="mb-4">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b text-slate-400 font-bold">
+                        <th class="text-left pb-1">Plato</th>
+                        <th class="text-center pb-1">Cant</th>
+                        <th class="text-right pb-1">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody id="invItemsTable" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </div>
+        <div class="border-t pt-4 flex justify-between items-center text-sm font-bold text-slate-900">
+            <span>TOTAL GENERAL:</span>
+            <span id="invTotal" class="text-lg text-amber-600">$0.00</span>
+        </div>
+        <div class="text-center mt-6 text-[10px] text-slate-400">
+            ¡Gracias por su visita! Conserve este comprobante.
+        </div>
+    </div>
+
+    <!-- BARRA FLOTANTE DE CARRITO -->
+    <div id="floatingCartBar" class="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center z-40 transition-transform transform translate-y-32">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-500 text-slate-950 font-bold w-10 h-10 rounded-full flex items-center justify-center text-sm shadow" id="floatingCartCount">0</div>
+            <div>
+                <p class="text-xs text-slate-400 font-medium">Tu Pedido Actual</p>
+                <p id="floatingCartTotal" class="text-lg font-bold text-amber-300">$0.00</p>
+            </div>
+        </div>
+        <button onclick="switchTab('order')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm shadow transition">
+            Ver Pedido <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+    </div>
+
+    <!-- MODAL LOGIN ADMIN -->
+    <div id="adminLoginModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-sm p-6 rounded-2xl shadow-2xl relative">
+            <button onclick="closeAdminLogin()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold"><i class="fa-solid fa-lock"></i></div>
+                <h3 class="text-xl font-bold text-slate-900">Panel de Ajustes</h3>
+                <p class="text-xs text-slate-500">Ingresa tus credenciales de administrador</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario:</label>
+                    <input type="text" id="adminUser" placeholder="cliente1" class="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Contraseña:</label>
+                    <input type="password" id="adminPass" placeholder="cliente123" class="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                </div>
+                <button onclick="verifyAdminLogin()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-lg shadow transition text-sm">Entrar al Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DE ADMINISTRACIÓN COMPLETO -->
+    <div id="adminPanelModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-50 hidden overflow-y-auto p-4">
+        <div class="bg-white max-w-4xl mx-auto rounded-2xl shadow-2xl p-6 my-8 relative">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <h2 class="text-2xl font-bold text-slate-900 flex items-center space-x-2">
+                    <i class="fa-solid fa-sliders text-amber-500"></i><span>Panel de Configuración y Ajustes</span>
+                </h2>
+                <button onclick="closeAdminPanel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full text-sm font-bold"><i class="fa-solid fa-xmark mr-1"></i> Cerrar</button>
+            </div>
+
+            <div class="space-y-8">
+                <!-- Config General -->
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <h3 class="font-bold text-slate-900 mb-4 text-base"><i class="fa-solid fa-store mr-2 text-amber-500"></i>Datos Generales del Restaurante</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Restaurante:</label>
+                            <input type="text" id="cfgRestName" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Número de WhatsApp (con código país):</label>
+                            <input type="text" id="cfgWhatsapp" placeholder="5491112345678" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dirección del Local:</label>
+                            <input type="text" id="cfgAddress" placeholder="Av. Corrientes 1234, CABA" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono de Contacto:</label>
+                            <input type="text" id="cfgPhone" placeholder="011 4321-5678" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Horarios de Atención:</label>
+                            <input type="text" id="cfgHours" placeholder="Mar a Dom de 20:00 a 01:00 hs" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Alias Bancario (Transferencia):</label>
+                            <input type="text" id="cfgAlias" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">CBU Bancario:</label>
+                            <input type="text" id="cfgCbu" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Logo / Isotipo (Subir desde PC):</label>
+                            <input type="file" id="cfgLogoFile" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-600">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Imagen de Portada (Subir desde PC):</label>
+                            <input type="file" id="cfgCoverFile" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Redes Sociales -->
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <h3 class="font-bold text-slate-900 mb-4 text-base"><i class="fa-solid fa-share-nodes mr-2 text-amber-500"></i>Redes Sociales</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Instagram (Usuario o Link):</label>
+                            <input type="text" id="cfgInstagram" placeholder="@elbuensabor" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Facebook (Usuario o Link):</label>
+                            <input type="text" id="cfgFacebook" placeholder="fb.com/elbuensabor" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">TikTok (Usuario o Link):</label>
+                            <input type="text" id="cfgTiktok" placeholder="@elbuensabor" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">YouTube (Canal o Link):</label>
+                            <input type="text" id="cfgYoutube" placeholder="youtube.com/@elbuensabor" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-right">
+                    <button onclick="saveGeneralSettings()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 py-3 rounded-xl text-sm shadow-lg transition">Guardar Todos los Cambios</button>
+                </div>
+
+                <!-- Gestión de Platos -->
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-900 text-base"><i class="fa-solid fa-utensils mr-2 text-amber-500"></i>Administrar Platos del Menú</h3>
+                        <button onclick="openDishModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs transition"><i class="fa-solid fa-plus mr-1"></i> Agregar Plato</button>
+                    </div>
+                    <div id="adminDishesList" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+                </div>
+
+                <!-- Gestión de Galería Virtual -->
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-900 text-base"><i class="fa-solid fa-images mr-2 text-amber-500"></i>Galería Virtual (Fotos del Local)</h3>
+                        <input type="file" id="galleryUploadInput" accept="image/*" onchange="addGalleryImage(event)" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-600">
+                    </div>
+                    <div id="adminGalleryGrid" class="grid grid-cols-3 md:grid-cols-6 gap-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CREAR / EDITAR PLATO -->
+    <div id="dishModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl relative">
+            <h3 id="dishModalTitle" class="text-xl font-bold text-slate-900 mb-4">Agregar Nuevo Plato</h3>
+            <input type="hidden" id="editDishIndex" value="-1">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría:</label>
+                    <select id="dishCategory" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                        <option value="Entradas">Entradas</option>
+                        <option value="Principales">Principales</option>
+                        <option value="Postres">Postres</option>
+                        <option value="Bebidas">Bebidas</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Plato:</label>
+                    <input type="text" id="dishName" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Precio ($):</label>
+                    <input type="number" id="dishPrice" class="w-full px-3 py-2 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción:</label>
+                    <textarea id="dishDesc" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Foto del Plato:</label>
+                    <input type="file" id="dishImageFile" accept="image/*" class="w-full text-xs text-slate-500">
+                </div>
+                <div class="flex space-x-2 pt-2">
+                    <button onclick="saveDish()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm transition">Guardar Plato</button>
+                    <button onclick="closeDishModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 rounded-lg text-sm transition">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA DE LA APLICACIÓN -->
+    <script>
+        let appData = {
+            name: "El Buen Sabor",
+            whatsapp: "5491112345678",
+            address: "Av. Principal 123",
+            phone: "011 4567-8900",
+            hours: "Mar a Dom de 20:00 a 01:00 hs",
+            alias: "elbuensabor.mp",
+            cbu: "0000003100012345678901",
+            instagram: "@elbuensabor",
+            facebook: "fb.com/elbuensabor",
+            tiktok: "@elbuensabor",
+            youtube: "youtube.com/@elbuensabor",
+            logo: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=100&q=80",
+            cover: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
+            dishes: [
+                { category: "Entradas", name: "Tequeños de Queso", price: 4500, desc: "Bastoncitos crujientes rellenos de queso fundido con salsa de la casa.", image: "https://images.unsplash.com/photo-1541529086526-db283c563270?auto=format&fit=crop&w=500&q=80" },
+                { category: "Entradas", name: "Provoleta Asada", price: 6200, desc: "Queso provolone fundido con orégano y tomates cherry confitados.", image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80" },
+                { category: "Principales", name: "Hamburguesa Clásica", price: 8900, desc: "Medallón de carne 180g, cheddar, panceta crujiente y salsa alioli.", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=80" },
+                { category: "Principales", name: "Milanesa Napolitana", price: 11500, desc: "Con salsa de tomate natural, jamón, mozzarella y papas fritas.", image: "https://images.unsplash.com/photo-1626844131082-256783844137?auto=format&fit=crop&w=500&q=80" },
+                { category: "Principales", name: "Ñoquis Caseros", price: 9500, desc: "Ñoquis artesanales de papa con salsa boloñesa y parmesano.", image: "https://images.unsplash.com/photo-1621996346565-e3d5d6281298?auto=format&fit=crop&w=500&q=80" },
+                { category: "Postres", name: "Volcán de Chocolate", price: 5800, desc: "Torta tibia con corazón fundido y bocha de helado de americana.", image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=500&q=80" },
+                { category: "Postres", name: "Flan Casero", price: 4200, desc: "Con dulce de leche artesanal y crema batida.", image: "https://images.unsplash.com/photo-1527224857826-43accc5f2825?auto=format&fit=crop&w=500&q=80" },
+                { category: "Bebidas", name: "Gaseosa Línea Pepsi 500ml", price: 2200, desc: "Fría en botella.", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=500&q=80" },
+                { category: "Bebidas", name: "Cerveza Artesanal Tirada", price: 3800, desc: "Pinta IPA o Honey (500ml).", image: "https://images.unsplash.com/photo-1535958636474-b021ee887b13?auto=format&fit=crop&w=500&q=80" }
+            ],
+            gallery: [
+                "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1537047902294-62a40c20a6ae?auto=format&fit=crop&w=600&q=80"
+            ]
+        };
+
+        let cart = [];
+        let currentCategory = 'all';
+
+        function loadAppData() {
+            const saved = localStorage.getItem('restaurant_cloud_data');
+            if (saved) {
+                try { appData = JSON.parse(saved); } catch(e) {}
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const tableParam = urlParams.get('mesa');
+            const tableInput = document.getElementById('orderTable');
+            const notice = document.getElementById('tableNotice');
+
+            if (tableParam) {
+                tableInput.value = `Mesa ${tableParam}`;
+                notice.classList.remove('hidden');
+            } else {
+                tableInput.value = "Para Llevar / Salón";
+            }
+
+            renderUI();
+            generateTableQrs();
+        }
+
+        function saveAppData() {
+            localStorage.setItem('restaurant_cloud_data', JSON.stringify(appData));
+            renderUI();
+        }
+
+        function renderUI() {
+            document.getElementById('headerName').innerText = appData.name;
+            document.getElementById('headerLogo').src = appData.logo;
+            document.getElementById('headerCover').style.backgroundImage = `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url('${appData.cover}')`;
+            document.getElementById('displayAlias').innerText = appData.alias;
+            document.getElementById('displayCbu').innerText = appData.cbu;
+
+            renderCategories();
+            renderMenu();
+            renderGallery();
+            renderAdminDishes();
+            renderAdminGallery();
+            updateCartUI();
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-amber-500', 'text-slate-950');
+                el.classList.add('bg-white/20', 'text-white');
+            });
+
+            if (tabName === 'menu') {
+                document.getElementById('tabMenu').classList.remove('hidden');
+                document.getElementById('btnTabMenu').classList.add('bg-amber-500', 'text-slate-950');
+                document.getElementById('btnTabMenu').classList.remove('bg-white/20', 'text-white');
+            } else if (tabName === 'gallery') {
+                document.getElementById('tabGallery').classList.remove('hidden');
+                document.getElementById('btnTabGallery').classList.add('bg-amber-500', 'text-slate-950');
+                document.getElementById('btnTabGallery').classList.remove('bg-white/20', 'text-white');
+            } else if (tabName === 'order') {
+                document.getElementById('tabOrder').classList.remove('hidden');
+                document.getElementById('btnTabOrder').classList.add('bg-amber-500', 'text-slate-950');
+                document.getElementById('btnTabOrder').classList.remove('bg-white/20', 'text-white');
+                renderOrderTabList();
+            } else if (tabName === 'qr') {
+                document.getElementById('tabQr').classList.remove('hidden');
+                document.getElementById('btnTabQr').classList.add('bg-amber-500', 'text-slate-950');
+                document.getElementById('btnTabQr').classList.remove('bg-white/20', 'text-white');
+            }
+        }
+
+        function renderCategories() {
+            const categories = ['all', ...new Set(appData.dishes.map(d => d.category))];
+            const container = document.getElementById('categoryFilters');
+            container.innerHTML = categories.map(cat => `
+                <button onclick="filterCategory('${cat}')" class="cat-filter px-5 py-2 rounded-full font-bold text-sm whitespace-nowrap shadow transition ${currentCategory === cat ? 'bg-amber-500 text-slate-950' : 'bg-white text-slate-700 hover:bg-slate-100'}">
+                    ${cat === 'all' ? 'Todos' : cat}
+                </button>
+            `).join('');
+        }
+
+        function filterCategory(cat) {
+            currentCategory = cat;
+            renderCategories();
+            renderMenu();
+        }
+
+        function renderMenu() {
+            const grid = document.getElementById('menuGrid');
+            const filtered = currentCategory === 'all' ? appData.dishes : appData.dishes.filter(d => d.category === currentCategory);
+            
+            grid.innerHTML = filtered.map(dish => `
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-slate-100 flex flex-col justify-between hover:shadow-lg transition">
+                    <div>
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="${dish.image}" alt="${dish.name}" class="w-full h-full object-cover">
+                            <span class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-amber-300 text-xs font-bold px-3 py-1 rounded-full">${dish.category}</span>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="font-bold text-lg text-slate-900 mb-1">${dish.name}</h3>
+                            <p class="text-slate-500 text-xs leading-relaxed mb-3">${dish.desc}</p>
+                        </div>
+                    </div>
+                    <div class="p-4 pt-0 flex justify-between items-center">
+                        <span class="text-lg font-extrabold text-slate-900">$${dish.price.toLocaleString()}</span>
+                        <button onclick="addToCart('${dish.name}', ${dish.price})" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow transition flex items-center space-x-1">
+                            <i class="fa-solid fa-cart-plus"></i><span>Pedir</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGallery() {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = appData.gallery.map(img => `
+                <div class="h-36 rounded-xl overflow-hidden shadow-sm border border-slate-200">
+                    <img src="${img}" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                </div>
+            `).join('');
+        }
+
+        function addToCart(name, price) {
+            const existing = cart.find(item => item.name === name);
+            if (existing) {
+                existing.qty++;
+            } else {
+                cart.push({ name, price, qty: 1 });
+            }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const totalItems = cart.reduce((sum, i) => sum + i.qty, 0);
+            const totalPrice = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+            document.getElementById('orderBadge').innerText = totalItems;
+            if (totalItems > 0) {
+                document.getElementById('orderBadge').classList.remove('hidden');
+                document.getElementById('floatingCartBar').classList.remove('translate-y-32');
+            } else {
+                document.getElementById('orderBadge').classList.add('hidden');
+                document.getElementById('floatingCartBar').classList.add('translate-y-32');
+            }
+
+            document.getElementById('floatingCartCount').innerText = totalItems;
+            document.getElementById('floatingCartTotal').innerText = `$${totalPrice.toLocaleString()}`;
+            document.getElementById('orderGrandTotal').innerText = `$${totalPrice.toLocaleString()}`;
+        }
+
+        function renderOrderTabList() {
+            const list = document.getElementById('orderItemsList');
+            if (cart.length === 0) {
+                list.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">Tu pedido está vacío. ¡Elige tus platos en el menú!</p>`;
+                return;
+            }
+
+            list.innerHTML = cart.map((item, idx) => `
+                <div class="py-3 flex justify-between items-center text-sm">
+                    <div>
+                        <p class="font-bold text-slate-900">${item.name}</p>
+                        <p class="text-xs text-slate-500">$${item.price.toLocaleString()} c/u</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-2 bg-slate-100 px-2 py-1 rounded-lg">
+                            <button onclick="changeQty(${idx}, -1)" class="text-slate-600 hover:text-slate-900 font-bold px-1">-</button>
+                            <span class="font-bold text-xs">${item.qty}</span>
+                            <button onclick="changeQty(${idx}, 1)" class="text-slate-600 hover:text-slate-900 font-bold px-1">+</button>
+                        </div>
+                        <span class="font-bold text-slate-900 w-16 text-right">$${(item.price * item.qty).toLocaleString()}</span>
+                        <button onclick="removeFromCart(${idx})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function changeQty(idx, delta) {
+            cart[idx].qty += delta;
+            if (cart[idx].qty <= 0) {
+                cart.splice(idx, 1);
+            }
+            updateCartUI();
+            renderOrderTabList();
+        }
+
+        function removeFromCart(idx) {
+            cart.splice(idx, 1);
+            updateCartUI();
+            renderOrderTabList();
+        }
+
+        function clearCart() {
+            cart = [];
+            updateCartUI();
+            renderOrderTabList();
+        }
+
+        function togglePaymentMethod() {
+            const method = document.querySelector('input[name="paymentMethod"]:checked').value;
+            const transferBox = document.getElementById('transferDetailsBox');
+            if (method === 'Transferencia') {
+                transferBox.classList.remove('hidden');
+            } else {
+                transferBox.classList.add('hidden');
+            }
+        }
+
+        function generateTableQrs() {
+            const total = parseInt(document.getElementById('totalTablesInput').value) || 10;
+            const container = document.getElementById('qrGridContainer');
+            const baseUrl = window.location.href.split('?')[0];
+
+            let html = '';
+            for (let i = 1; i <= total; i++) {
+                const tableUrl = `${baseUrl}?mesa=${i}`;
+                const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(tableUrl)}`;
+                
+                html += `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col items-center">
+                        <h4 class="font-bold text-slate-900 text-sm mb-2">Mesa N° ${i}</h4>
+                        <img src="${qrApi}" alt="QR Mesa ${i}" class="w-32 h-32 rounded-lg bg-white p-2 shadow-inner mb-3">
+                        <a href="${tableUrl}" target="_blank" class="text-xs text-amber-600 font-bold hover:underline mb-2">Probar enlace de Mesa ${i}</a>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function prepareInvoiceDOM() {
+            const table = document.getElementById('orderTable').value.trim() || "Mesa General";
+            const method = document.querySelector('input[name="paymentMethod"]:checked').value;
+            const totalPrice = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+            document.getElementById('invLogo').src = appData.logo;
+            document.getElementById('invRestName').innerText = appData.name;
+            document.getElementById('invDate').innerText = new Date().toLocaleString();
+            document.getElementById('invTable').innerText = table;
+            document.getElementById('invPayment').innerText = method;
+
+            const tbody = document.getElementById('invItemsTable');
+            tbody.innerHTML = cart.map(item => `
+                <tr>
+                    <td class="py-1.5 font-semibold text-slate-800">${item.name}</td>
+                    <td class="py-1.5 text-center">${item.qty}</td>
+                    <td class="py-1.5 text-right font-medium">$${(item.price * item.qty).toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('invTotal').innerText = `$${totalPrice.toLocaleString()}`;
+        }
+
+        async function downloadInvoiceImageOnly() {
+            if (cart.length === 0) {
+                alert("Tu pedido está vacío.");
+                return;
+            }
+            prepareInvoiceDOM();
+            const ticketElement = document.getElementById('invoiceTicket');
+            
+            const canvas = await html2canvas(ticketElement, { scale: 2 });
+            const imageURI = canvas.toDataURL('image/png');
+            
+            const a = document.createElement('a');
+            a.href = imageURI;
+            a.download = `Factura_${appData.name.replace(/\s+/g, '_')}.png`;
+            a.click();
+        }
+
+        async function sendOrderWhatsAppDirect() {
+            if (cart.length === 0) {
+                alert("Tu pedido está vacío.");
+                return;
+            }
+
+            const table = document.getElementById('orderTable').value.trim() || "Mesa General";
+            const method = document.querySelector('input[name="paymentMethod"]:checked').value;
+            const totalPrice = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+            prepareInvoiceDOM();
+            const ticketElement = document.getElementById('invoiceTicket');
+            try {
+                const canvas = await html2canvas(ticketElement, { scale: 2 });
+                const imageURI = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = imageURI;
+                downloadLink.download = `Factura_${table.replace(/\s+/g, '_')}.png`;
+                downloadLink.click();
+            } catch (e) {
+                console.log("No se pudo autogenerar la imagen", e);
+            }
+
+            // Ticket en texto mejorado y elegante
+            let msg = `========================================\n`;
+            msg += `          *${appData.name.toUpperCase()}*\n`;
+            msg += `========================================\n`;
+            msg += `*COMPROBANTE DE PEDIDO*\n`;
+            msg += `----------------------------------------\n`;
+            msg += `*UBICACION:* ${table}\n`;
+            msg += `*PAGO:* ${method}\n`;
+            msg += `*DIRECCION:* ${appData.address}\n`;
+            msg += `*TELEFONO:* ${appData.phone}\n`;
+            msg += `*HORARIO:* ${appData.hours}\n`;
+            msg += `----------------------------------------\n`;
+            msg += `*DETALLE DE CONSUMO:*\n`;
+            
+            cart.forEach(i => {
+                msg += `• ${i.qty}x ${i.name} --- $${(i.price * i.qty).toLocaleString()}\n`;
+            });
+
+            msg += `----------------------------------------\n`;
+            msg += `*TOTAL A PAGAR: $${totalPrice.toLocaleString()}*\n`;
+            msg += `========================================\n`;
+            msg += `*(Factura en imagen descargada en dispositivo)*\n\n`;
+            msg += `*SIGUENOS EN NUESTRAS REDES:* \n`;
+            msg += `• Instagram: ${appData.instagram}\n`;
+            msg += `• Facebook: ${appData.facebook}\n`;
+            msg += `• TikTok: ${appData.tiktok}\n`;
+            msg += `• YouTube: ${appData.youtube}\n`;
+            msg += `========================================`;
+
+            const url = `https://wa.me/${appData.whatsapp}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        function openAdminLogin() { document.getElementById('adminLoginModal').classList.remove('hidden'); }
+        function closeAdminLogin() { document.getElementById('adminLoginModal').classList.add('hidden'); }
+
+        function verifyAdminLogin() {
+            const u = document.getElementById('adminUser').value;
+            const p = document.getElementById('adminPass').value;
+            if (u === 'cliente1' && p === 'cliente123') {
+                closeAdminLogin();
+                document.getElementById('adminPanelModal').classList.remove('hidden');
+                loadAdminForm();
+            } else {
+                alert("Usuario o contraseña incorrectos.");
+            }
+        }
+        function closeAdminPanel() { document.getElementById('adminPanelModal').classList.add('hidden'); }
+
+        function loadAdminForm() {
+            document.getElementById('cfgRestName').value = appData.name;
+            document.getElementById('cfgWhatsapp').value = appData.whatsapp;
+            document.getElementById('cfgAddress').value = appData.address || "";
+            document.getElementById('cfgPhone').value = appData.phone || "";
+            document.getElementById('cfgHours').value = appData.hours || "";
+            document.getElementById('cfgAlias').value = appData.alias;
+            document.getElementById('cfgCbu').value = appData.cbu;
+            document.getElementById('cfgInstagram').value = appData.instagram || "";
+            document.getElementById('cfgFacebook').value = appData.facebook || "";
+            document.getElementById('cfgTiktok').value = appData.tiktok || "";
+            document.getElementById('cfgYoutube').value = appData.youtube || "";
+        }
+
+        function saveGeneralSettings() {
+            appData.name = document.getElementById('cfgRestName').value || appData.name;
+            appData.whatsapp = document.getElementById('cfgWhatsapp').value || appData.whatsapp;
+            appData.address = document.getElementById('cfgAddress').value;
+            appData.phone = document.getElementById('cfgPhone').value;
+            appData.hours = document.getElementById('cfgHours').value;
+            appData.alias = document.getElementById('cfgAlias').value || appData.alias;
+            appData.cbu = document.getElementById('cfgCbu').value || appData.cbu;
+            appData.instagram = document.getElementById('cfgInstagram').value;
+            appData.facebook = document.getElementById('cfgFacebook').value;
+            appData.tiktok = document.getElementById('cfgTiktok').value;
+            appData.youtube = document.getElementById('cfgYoutube').value;
+
+            const logoInput = document.getElementById('cfgLogoFile');
+            if (logoInput.files && logoInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    appData.logo = e.target.result;
+                    finishSavingGeneral();
+                };
+                reader.readAsDataURL(logoInput.files[0]);
+            } else {
+                finishSavingGeneral();
+            }
+        }
+
+        function finishSavingGeneral() {
+            const coverInput = document.getElementById('cfgCoverFile');
+            if (coverInput.files && coverInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    appData.cover = e.target.result;
+                    saveAppData();
+                    alert("¡Ajustes guardados correctamente!");
+                };
+                reader.readAsDataURL(coverInput.files[0]);
+            } else {
+                saveAppData();
+                alert("¡Ajustes guardados correctamente!");
+            }
+        }
+
+        function renderAdminDishes() {
+            const list = document.getElementById('adminDishesList');
+            list.innerHTML = appData.dishes.map((dish, idx) => `
+                <div class="bg-white p-3 rounded-lg border flex justify-between items-center text-xs">
+                    <div class="flex items-center space-x-3">
+                        <img src="${dish.image}" class="w-10 h-10 object-cover rounded-md">
+                        <div>
+                            <p class="font-bold text-slate-900">${dish.name} <span class="text-slate-400">(${dish.category})</span></p>
+                            <p class="text-slate-500">$${dish.price.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editDish(${idx})" class="bg-blue-50 text-blue-600 px-2.5 py-1 rounded font-bold hover:bg-blue-100">Editar</button>
+                        <button onclick="deleteDish(${idx})" class="bg-red-50 text-red-600 px-2.5 py-1 rounded font-bold hover:bg-red-100">Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openDishModal(idx = -1) {
+            document.getElementById('editDishIndex').value = idx;
+            if (idx >= 0) {
+                const dish = appData.dishes[idx];
+                document.getElementById('dishModalTitle').innerText = "Editar Plato";
+                document.getElementById('dishCategory').value = dish.category;
+                document.getElementById('dishName').value = dish.name;
+                document.getElementById('dishPrice').value = dish.price;
+                document.getElementById('dishDesc').value = dish.desc;
+            } else {
+                document.getElementById('dishModalTitle').innerText = "Agregar Nuevo Plato";
+                document.getElementById('dishCategory').value = "Entradas";
+                document.getElementById('dishName').value = "";
+                document.getElementById('dishPrice').value = "";
+                document.getElementById('dishDesc').value = "";
+            }
+            document.getElementById('dishModal').classList.remove('hidden');
+        }
+
+        function closeDishModal() { document.getElementById('dishModal').classList.add('hidden'); }
+        function editDish(idx) { openDishModal(idx); }
+
+        function deleteDish(idx) {
+            if (confirm("¿Estás seguro de eliminar este plato?")) {
+                appData.dishes.splice(idx, 1);
+                saveAppData();
+                renderAdminDishes();
+            }
+        }
+
+        function saveDish() {
+            const idx = parseInt(document.getElementById('editDishIndex').value);
+            const category = document.getElementById('dishCategory').value;
+            const name = document.getElementById('dishName').value;
+            const price = parseFloat(document.getElementById('dishPrice').value) || 0;
+            const desc = document.getElementById('dishDesc').value;
+            const fileInput = document.getElementById('dishImageFile');
+
+            if (!name || price <= 0) {
+                alert("Por favor completa el nombre y un precio válido.");
+                return;
+            }
+
+            const updateDishObject = (imgUrl) => {
+                const dishObj = { category, name, price, desc, image: imgUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80" };
+                if (idx >= 0) {
+                    if (!imgUrl) dishObj.image = appData.dishes[idx].image;
+                    appData.dishes[idx] = dishObj;
+                } else {
+                    appData.dishes.push(dishObj);
+                }
+                saveAppData();
+                closeDishModal();
+                renderAdminDishes();
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) { updateDishObject(e.target.result); };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                updateDishObject(idx >= 0 ? appData.dishes[idx].image : null);
+            }
+        }
+
+        function renderAdminGallery() {
+            const grid = document.getElementById('adminGalleryGrid');
+            grid.innerHTML = appData.gallery.map((img, idx) => `
+                <div class="relative h-20 rounded-lg overflow-hidden border">
+                    <img src="${img}" class="w-full h-full object-cover">
+                    <button onclick="deleteGalleryImage(${idx})" class="absolute top-1 right-1 bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs shadow"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function addGalleryImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    appData.gallery.push(e.target.result);
+                    saveAppData();
+                    renderAdminGallery();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function deleteGalleryImage(idx) {
+            appData.gallery.splice(idx, 1);
+            saveAppData();
+            renderAdminGallery();
+        }
+
+        window.onload = loadAppData;
+    </script>
+</body>
+</html>
